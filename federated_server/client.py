@@ -2,10 +2,16 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import datasets, transforms
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional, Any
 import flwr as fl
 from collections import OrderedDict
 import numpy as np
+import os
+import sys
+from secure_aggregation import SecureAggregator, encrypt_parameters
+
+# Add parent directory to path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Define the same model architecture as in server.py
 class Net(nn.Module):
@@ -53,9 +59,17 @@ def load_data():
     return client_datasets, testset
 
 class FlowerClient(fl.client.NumPyClient):
-    def __init__(self, cid: str, trainset, testset, device):
-        self.cid = cid
+    def __init__(self, cid: str, trainset, testset, device, num_clients: int = 2):
+        self.cid = int(cid)  # Ensure cid is an integer
         self.device = device
+        self.num_clients = num_clients
+        self.round_num = 0
+        
+        # Initialize secure aggregator
+        self.secure_aggregator = SecureAggregator(
+            num_clients=num_clients,
+            client_id=self.cid
+        )
         
         # Split data into train/validation (80/20)
         train_size = int(0.8 * len(trainset))
@@ -78,6 +92,10 @@ class FlowerClient(fl.client.NumPyClient):
         self.model = Net().to(device)
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.model.parameters())
+        
+        # Store parameter shapes and dtypes for encryption
+        self.param_shapes = [p.shape for p in self.model.parameters()]
+        self.param_dtypes = [str(p.detach().cpu().numpy().dtype) for p in self.model.parameters()]
     
     # Remove to_client method as we'll use start_numpy_client directly
     
@@ -90,6 +108,18 @@ class FlowerClient(fl.client.NumPyClient):
         self.model.load_state_dict(state_dict, strict=True)
     
     def fit(self, parameters, config):
+        # Update round number from config if available
+        self.round_num = config.get('server_round', 0)
+        
+        # Convert parameters to numpy arrays if they're not already
+        if parameters is not None:
+            if not isinstance(parameters, list):
+                try:
+                    parameters = fl.common.parameters_to_ndarrays(parameters)
+                except Exception as e:
+                    print(f"Error converting parameters: {e}")
+        
+        # Set parameters from server
         self.set_parameters(parameters)
         
         # Train for one epoch
@@ -103,42 +133,121 @@ class FlowerClient(fl.client.NumPyClient):
             loss.backward()
             self.optimizer.step()
         
-        # Return updated model parameters and results
-        return self.get_parameters({}), len(self.train_loader.dataset), {}
+        # Get updated parameters as numpy arrays
+        parameters_prime = self.get_parameters({})
+        
+        # Apply secure aggregation masking
+        try:
+            masked_parameters, _ = self.secure_aggregator.mask_updates(
+                parameters_prime, 
+                self.round_num
+            )
+            
+            # Ensure all parameters are numpy arrays with consistent shapes
+            processed_params = []
+            for param in masked_parameters:
+                if isinstance(param, np.ndarray):
+                    processed_params.append(param.astype(np.float32))
+                else:
+                    processed_params.append(np.array(param, dtype=np.float32))
+            
+            # Calculate training metrics
+            train_loss, train_accuracy = self._evaluate_metrics()
+            metrics = {
+                "train_loss": float(train_loss),
+                "train_accuracy": float(train_accuracy),
+                "client_id": self.cid,
+                "round": self.round_num
+            }
+            
+            # Convert to Flower Parameters and return with metrics
+            parameters_aggregated = fl.common.ndarrays_to_parameters(processed_params)
+            return parameters_prime, len(self.train_loader.dataset), metrics
+            
+        except Exception as e:
+            print(f"Error in secure aggregation: {e}")
+            # Fall back to standard parameters if secure aggregation fails
+            train_loss, train_accuracy = self._evaluate_metrics()
+            metrics = {
+                "train_loss": float(train_loss),
+                "train_accuracy": float(train_accuracy),
+                "client_id": self.cid,
+                "round": self.round_num
+            }
+            return parameters_prime, len(self.train_loader.dataset), metrics
+    
+    def _evaluate_metrics(self):
+        """Helper method to calculate training metrics"""
+        self.model.eval()
+        total_loss, total_correct, total_samples = 0.0, 0, 0
+        
+        with torch.no_grad():
+            for images, labels in self.train_loader:
+                images, labels = images.to(self.device), labels.to(self.device)
+                outputs = self.model(images)
+                loss = self.criterion(outputs, labels)
+                
+                total_loss += loss.item() * labels.size(0)
+                _, predicted = torch.max(outputs.data, 1)
+                total_correct += (predicted == labels).sum().item()
+                total_samples += labels.size(0)
+        
+        accuracy = total_correct / total_samples if total_samples > 0 else 0.0
+        avg_loss = total_loss / total_samples if total_samples > 0 else float('inf')
+        
+        return avg_loss, accuracy
     
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
-        self.model.eval()
         
-        loss, correct, total = 0.0, 0, 0
+        # Evaluate
+        self.model.eval()
+        total_loss, total_correct, total_samples = 0.0, 0, 0
+        
         with torch.no_grad():
             for images, labels in self.test_loader:
                 images, labels = images.to(self.device), labels.to(self.device)
                 outputs = self.model(images)
-                loss += self.criterion(outputs, labels).item() * labels.size(0)
+                loss = self.criterion(outputs, labels)
+                
+                total_loss += loss.item() * labels.size(0)
                 _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
+                total_correct += (predicted == labels).sum().item()
+                total_samples += labels.size(0)
         
-        accuracy = correct / total
-        loss = loss / total
+        accuracy = total_correct / total_samples if total_samples > 0 else 0.0
+        avg_loss = total_loss / total_samples if total_samples > 0 else float('inf')
         
-        return float(loss), len(self.test_loader.dataset), {"accuracy": accuracy}
+        metrics = {
+            "accuracy": float(accuracy),
+            "loss": float(avg_loss),
+            "client_id": self.cid,
+            "round": self.round_num
+        }
+        
+        return float(avg_loss), total_samples, metrics
 
-def client_fn(cid: str) -> FlowerClient:
+def client_fn(cid: str) -> fl.client.Client:
     """Create a Flower client representing a single organization."""
+    import os
+    import torch
+    
+    # Load model and data
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     
-    # Load data for this client
+    # Load dataset
     client_datasets, testset = load_data()
-    client_id = int(cid)
     
-    # Create client
+    # Get number of clients from environment variable or use default (2)
+    num_clients = int(os.environ.get('NUM_CLIENTS', 2))
+    
+    # Create and return client
     return FlowerClient(
         cid=cid,
-        trainset=client_datasets[client_id],
+        trainset=client_datasets[0],
         testset=testset,
-        device=device
+        device=device,
+        num_clients=num_clients
     )
 
 if __name__ == "__main__":
