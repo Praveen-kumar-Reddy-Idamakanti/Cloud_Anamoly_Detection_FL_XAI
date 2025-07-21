@@ -1,73 +1,214 @@
-# Welcome to your Lovable project
+# Cloud Anomaly Detection Frontend
 
-## Project info
+A modern, responsive web application for monitoring and analyzing cloud infrastructure anomalies using Federated Learning and eXplainable AI (XAI).
 
-**URL**: https://lovable.dev/projects/b67f0157-cda4-413f-9653-83e3c280aa13
+![Dashboard Preview](public/dashboard-preview.png)
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+- **Real-time Monitoring**: Live anomaly detection and alerts
+- **Interactive Dashboards**: Visualize system metrics and anomalies
+- **XAI Explanations**: Understand model decisions with explainable AI
+- **User Management**: Role-based access control
+- **Model Management**: Deploy and manage ML models
+- **Responsive Design**: Works on desktop and mobile devices
 
-**Use Lovable**
+## Tech Stack
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/b67f0157-cda4-413f-9653-83e3c280aa13) and start prompting.
+- **Framework**: React 18 with TypeScript
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS with Shadcn UI components
+- **State Management**: React Query + Context API
+- **Routing**: React Router v6
+- **UI Components**: Radix UI Primitives + Shadcn UI
+- **Charts**: Recharts
+- **Forms**: React Hook Form with Zod validation
+- **Authentication**: Supabase Auth
+- **Real-time**: Supabase Realtime
+- **Icons**: Lucide React
+- **Notifications**: Sonner
 
-Changes made via Lovable will be committed automatically to this repo.
+## Prerequisites
 
-**Use your preferred IDE**
+- Node.js 18+ (LTS recommended)
+- npm 9+ or pnpm 8+ or yarn 1.22+
+- Git
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Getting Started
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 1. Clone the Repository
 
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+```bash
+git clone <repository-url>
+cd frontend
 ```
 
-**Edit a file directly in GitHub**
+### 2. Install Dependencies
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Using npm:
+```bash
+npm install
+```
 
-**Use GitHub Codespaces**
+Or using pnpm (recommended):
+```bash
+pnpm install
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### 3. Environment Setup
 
-## What technologies are used for this project?
+Create a `.env` file in the root directory with the following variables:
 
-This project is built with:
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_API_BASE_URL=your_api_base_url
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### 4. Start Development Server
 
-## How can I deploy this project?
+```bash
+npm run dev
+# or
+pnpm dev
+```
 
-Simply open [Lovable](https://lovable.dev/projects/b67f0157-cda4-413f-9653-83e3c280aa13) and click on Share -> Publish.
+The application will be available at `http://localhost:5173`
 
-## Can I connect a custom domain to my Lovable project?
+## Project Structure
 
-Yes it is!
+```
+src/
+├── api/               # API clients and services
+├── assets/            # Static assets (images, fonts)
+├── components/        # Reusable UI components
+│   ├── ui/           # Shadcn UI components
+│   ├── dashboard/    # Dashboard-specific components
+│   └── layout/       # Layout components
+├── contexts/         # React contexts
+├── data/             # Mock data and types
+├── hooks/            # Custom React hooks
+├── integrations/     # Third-party integrations
+├── lib/              # Utility functions
+├── pages/            # Page components
+└── styles/           # Global styles
+```
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## Available Scripts
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+- `npm run type-check` - Run TypeScript type checking
+
+## Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `VITE_SUPABASE_URL` | Supabase project URL | Yes |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key | Yes |
+| `VITE_API_BASE_URL` | Base URL for API requests | Yes |
+| `VITE_ENABLE_MOCK_API` | Enable mock API (true/false) | No |
+
+## Authentication
+
+The application uses Supabase Auth for authentication. To set up:
+
+1. Create a new project in Supabase
+2. Enable Email/Password authentication in the Auth providers
+3. Configure the redirect URLs in Supabase Auth settings
+4. Update the environment variables with your Supabase credentials
+
+## API Integration
+
+The frontend communicates with the following API endpoints:
+
+- `/api/auth/*` - Authentication endpoints
+- `/api/anomalies` - Anomaly detection data
+- `/api/models` - Model management
+- `/api/analytics` - Analytics data
+- `/api/users` - User management
+
+## Styling Guidelines
+
+- Use Tailwind CSS utility classes for styling
+- Follow the design system defined in `tailwind.config.ts`
+- Use Shadcn UI components when possible
+- Custom components should be placed in `src/components/ui`
+- Use CSS modules for complex component-specific styles
+
+## State Management
+
+- **Server State**: Use React Query for data fetching and caching
+- **Global UI State**: Use React Context for theme, auth state, etc.
+- **Local State**: Use React's `useState` and `useReducer` for component-specific state
+
+## Testing
+
+Run tests with:
+
+```bash
+npm test
+```
+
+## Deployment
+
+### Building for Production
+
+```bash
+npm run build
+```
+
+The build artifacts will be stored in the `dist/` directory.
+
+### Deployment Options
+
+1. **Vercel** (Recommended)
+   - Connect your GitHub repository
+   - Set up environment variables
+   - Deploy with zero configuration
+
+2. **Netlify**
+   - Import your Git repository
+   - Set build command: `npm run build`
+   - Set publish directory: `dist`
+   - Add environment variables
+
+3. **Docker**
+   ```dockerfile
+   # Use the official Node.js image
+   FROM node:18-alpine AS builder
+   WORKDIR /app
+   COPY package*.json ./
+   RUN npm ci
+   COPY . .
+   RUN npm run build
+
+   # Serve the built app using Nginx
+   FROM nginx:alpine
+   COPY --from=builder /app/dist /usr/share/nginx/html
+   COPY nginx.conf /etc/nginx/conf.d/default.conf
+   EXPOSE 80
+   CMD ["nginx", "-g", "daemon off;"]
+   ```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+For support, please open an issue in the repository or contact the development team.
+
+---
+
+Built with ❤️ by [Your Team Name]
