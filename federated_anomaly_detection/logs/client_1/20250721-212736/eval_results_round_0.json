@@ -1,0 +1,6 @@
+{
+  "val_loss": 0.10541354924440384,
+  "anomaly_ratio": 0.05,
+  "threshold": 0.006683071609586477,
+  "num_samples": 200
+}

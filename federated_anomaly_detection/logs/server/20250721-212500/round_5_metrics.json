@@ -1,0 +1,22 @@
+{
+  "server_round": 5,
+  "aggregated_metrics": {},
+  "client_metrics": [
+    {
+      "client_id": "0",
+      "metrics": {
+        "train_loss": 0.008455366190522909,
+        "val_loss": 0.13331110894680023
+      },
+      "num_examples": 800
+    },
+    {
+      "client_id": "1",
+      "metrics": {
+        "train_loss": 0.008061600726097823,
+        "val_loss": 0.136802117228508
+      },
+      "num_examples": 800
+    }
+  ]
+}
